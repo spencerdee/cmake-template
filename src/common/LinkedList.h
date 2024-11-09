@@ -65,8 +65,8 @@ template <class T> struct PreallocatedLinkedList {
                     tail->next = node;
                 } else {
                     head = node;
-                    tail = node;
                 }
+                tail = node;
                 len++;
                 return 1;
             } else {
