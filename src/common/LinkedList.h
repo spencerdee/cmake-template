@@ -1,6 +1,7 @@
 #include <stack>
 #include <string>
 #include <stdexcept>
+#include <iostream>
 using namespace std;
 
 /**
@@ -36,6 +37,8 @@ template <class T> struct PreallocatedLinkedList {
             }
             allocated = size;
             len = 0;
+            head = nullptr;
+            tail = nullptr;
         }
 
         ~PreallocatedLinkedList<T>() {
@@ -46,6 +49,10 @@ template <class T> struct PreallocatedLinkedList {
             return head;
         }
 
+        LinkedListNode<T>* last() {
+            return tail;
+        }
+
         int size() {
             return allocated;
         }
@@ -54,7 +61,7 @@ template <class T> struct PreallocatedLinkedList {
             return len;
         }
 
-        int add(T data) {
+        int append(T data) {
             if (len < allocated) {
                 LinkedListNode<T>* node = freeNodes.top();
                 freeNodes.pop();
@@ -72,6 +79,28 @@ template <class T> struct PreallocatedLinkedList {
             } else {
                 return 0;
             }
+        }
+
+        int insertAfter(LinkedListNode<T>* loc, T data) {
+            if (loc >= nodes && loc <= nodes + (allocated * sizeof(LinkedListNode<T>)) &&
+                len < allocated && loc != nullptr) {
+                if (loc == tail) {
+                    return append(data);
+                }
+                LinkedListNode<T>* newNode = freeNodes.top();
+                freeNodes.pop();
+                newNode->data = data;
+                if (loc->next != nullptr) {
+                    loc->next->prev = newNode;
+                }
+                newNode->next = loc->next;
+                newNode->prev = loc;
+                loc->next = newNode;
+                len++;
+                return 1;
+            }
+            std::cerr << "Unable to insert into list.\n";
+            return 0;
         }
 };
 
