@@ -1,37 +1,36 @@
 #include <cstdio>
-#include <iostream>
+#include <chrono>
 #include "LinkedList.h"
-#include "BaseClassThread.h"
-
-class TestClass : public BaseClass {
-    public:
-        void run() override {
-            std::cout << "Thread Test" << std::endl;  
-        }
-};
 
 int main(int argc, char *argv[])
 {
     printf("Hello World\n");
-    PreallocatedLinkedList<int> l = PreallocatedLinkedList<int>(20);
-    for (int i = 0; i < 10; i++) {
-        l.append(i);
-    }
 
-    l.insertAfter(l.first(), 42);
+    int s = 10000;
+
+    auto start = std::chrono::high_resolution_clock::now();
+    LinkedListFile<int> l1 = LinkedListFile<int>(s);
     
-    printf("Length: %i\n", l.length());
-    printf("Size: %i\n", l.size());
-
-    LinkedListNode<int>* node = l.first();
-    while (node != nullptr) {
-        printf("%i\n", node->data);
-        node = node->next;
+    for (int i = 0; i < s; i++) {
+        l1.append(i);
     }
 
-    TestClass* test = new TestClass();
-    BaseClassThread* testClass = new BaseClassThread(test);
-    testClass->start();
-    std::cout << "main thread" << std::endl;
-    testClass->end();
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> elapsed = end - start;
+
+    printf("final time file = %f\n", elapsed.count());
+
+    start = std::chrono::high_resolution_clock::now();
+    LinkedListFile<int> l2 = LinkedListFile<int>(4000);
+    
+    for (int i = 0; i < s; i++) {
+        l2.append(i);
+    }
+
+    end = std::chrono::high_resolution_clock::now();
+
+    elapsed = end - start;
+
+    printf("final time malloc = %f\n", elapsed.count());
 }

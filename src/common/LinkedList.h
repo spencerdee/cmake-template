@@ -2,6 +2,7 @@
 #include <string>
 #include <stdexcept>
 #include <iostream>
+#include <windows.h>
 using namespace std;
 
 /**
@@ -13,38 +14,9 @@ template <class T> struct LinkedListNode {
     LinkedListNode<T>* prev;
 };
 
-
-/**
- * Pre
- */
-template <class T> struct PreallocatedLinkedList {
-    private:
-        stack<LinkedListNode<T>*> freeNodes;
-        LinkedListNode<T>* head;
-        LinkedListNode<T>* tail;
-        LinkedListNode<T>* nodes;
-        int allocated; // total allocated space (full nodes + empty nodes)
-        int len; // total unfilled nodes
+// interface for different linked list implementations
+template <class T> class LinkedList {
     public:
-        PreallocatedLinkedList<T>(int size) {
-            if (size < 1) {
-                throw invalid_argument("Linked List size must be > 0, cannot be " + to_string(size) + ".");
-            }
-            nodes = (LinkedListNode<T>*) malloc(sizeof(LinkedListNode<T>) * size);
-            for (int i = 0; i < size; i++) {
-                nodes[i] = LinkedListNode<T>();
-                freeNodes.push(&nodes[i]);
-            }
-            allocated = size;
-            len = 0;
-            head = nullptr;
-            tail = nullptr;
-        }
-
-        ~PreallocatedLinkedList<T>() {
-            free(nodes);
-        }
-
         LinkedListNode<T>* first() {
             return head;
         }
@@ -82,7 +54,7 @@ template <class T> struct PreallocatedLinkedList {
         }
 
         int insertAfter(LinkedListNode<T>* loc, T data) {
-            if (loc >= nodes && loc <= nodes + (allocated * sizeof(LinkedListNode<T>)) &&
+            if (loc >= memBoundLower && loc <= memBoundUpper &&
                 len < allocated && loc != nullptr) {
                 if (loc == tail) {
                     return append(data);
@@ -102,5 +74,91 @@ template <class T> struct PreallocatedLinkedList {
             std::cerr << "Unable to insert into list.\n";
             return 0;
         }
+
+    protected:
+        LinkedList() {};
+        ~LinkedList() {};
+
+        stack<LinkedListNode<T>*> freeNodes;
+        LinkedListNode<T>* head;
+        LinkedListNode<T>* tail;
+        void* memBoundLower;
+        void* memBoundUpper;
+        int allocated; // total allocated space (full nodes + empty nodes)
+        int len; // total unfilled nodes
 };
 
+template <class T> struct LinkedListFile : public LinkedList<T> {
+    public:
+        LinkedListFile<T>(int size) {
+            if (size < 1) {
+                throw invalid_argument("Linked List size must be > 0, cannot be " + to_string(size) + ".");
+            }
+
+            SYSTEM_INFO si;
+            GetSystemInfo(&si);
+            uint32_t memSize = (size * sizeof(LinkedListNode<T>) / si.dwPageSize + 1) * si.dwPageSize;
+
+            size = memSize / sizeof(LinkedListNode<T>);
+
+            hMapFile = (LinkedListNode<T>*) CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, memSize, NULL);
+
+            mem = MapViewOfFile(hMapFile,   // handle to map object
+                        FILE_MAP_ALL_ACCESS, // read/write permission
+                        0,
+                        0,
+                        memSize);
+
+            if (mem == nullptr) {
+                printf("Error creating backing memory.\n");
+                return;
+            }
+
+            for (int i = 0; i < size; i++) {
+                this->freeNodes.push(&((LinkedListNode<T>*)mem)[i]);
+            }
+
+            this->allocated = size;
+            this->len = 0;
+            this->head = nullptr;
+            this->tail = nullptr;
+            this->memBoundLower = mem;
+            this->memBoundUpper = (LinkedListNode<T>*) mem + memSize;
+        }
+
+        ~LinkedListFile<T>() {
+            UnmapViewOfFile(mem);
+            CloseHandle(hMapFile);
+        }
+
+    protected:
+        HANDLE hMapFile;
+        void* mem;
+};
+
+template <class T> class LinkedListPreallocated : public LinkedList<T> {
+    public:
+        LinkedListPreallocated(int size) {
+            if (size < 1) {
+                throw invalid_argument("Linked List size must be > 0, cannot be " + to_string(size) + ".");
+            }
+            nodes = (LinkedListNode<T>*) malloc(sizeof(LinkedListNode<T>) * size);
+            for (int i = 0; i < size; i++) {
+                nodes[i] = LinkedListNode<T>();
+                this->freeNodes.push(&nodes[i]);
+            }
+            this->allocated = size;
+            this->len = 0;
+            this->head = nullptr;
+            this->tail = nullptr;
+            this->memBoundLower = nodes;
+            this->memBoundUpper = nodes + sizeof(LinkedListNode<T>) * size;
+        }
+
+        ~LinkedListPreallocated<T>() {
+            free(nodes);
+        }
+    
+    protected:
+        LinkedListNode<T>* nodes;
+};
