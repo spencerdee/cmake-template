@@ -88,7 +88,8 @@ template <class T> class LinkedList {
         int len; // total unfilled nodes
 };
 
-template <class T> struct LinkedListFile : public LinkedList<T> {
+template <class T> 
+struct LinkedListFile : public LinkedList<T> {
     public:
         LinkedListFile<T>(int size) {
             if (size < 1) {
