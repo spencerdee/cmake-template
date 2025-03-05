@@ -1,8 +1,11 @@
+#ifndef linkedlisth
+#define linkedlisth
 #include <stack>
 #include <string>
 #include <stdexcept>
 #include <iostream>
 #include <windows.h>
+#include "Memory.h"
 using namespace std;
 
 /**
@@ -47,9 +50,9 @@ template <class T> class LinkedList {
                 }
                 tail = node;
                 len++;
-                return 1;
-            } else {
                 return 0;
+            } else {
+                return 1;
             }
         }
 
@@ -69,10 +72,10 @@ template <class T> class LinkedList {
                 newNode->prev = loc;
                 loc->next = newNode;
                 len++;
-                return 1;
+                return 0;
             }
             std::cerr << "Unable to insert into list.\n";
-            return 0;
+            return 1;
         }
 
     protected:
@@ -96,45 +99,24 @@ struct LinkedListFile : public LinkedList<T> {
                 throw invalid_argument("Linked List size must be > 0, cannot be " + to_string(size) + ".");
             }
 
-            SYSTEM_INFO si;
-            GetSystemInfo(&si);
-            uint32_t memSize = (size * sizeof(LinkedListNode<T>) / si.dwPageSize + 1) * si.dwPageSize;
-
-            size = memSize / sizeof(LinkedListNode<T>);
-
-            hMapFile = (LinkedListNode<T>*) CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, memSize, NULL);
-
-            mem = MapViewOfFile(hMapFile,   // handle to map object
-                        FILE_MAP_ALL_ACCESS, // read/write permission
-                        0,
-                        0,
-                        memSize);
-
-            if (mem == nullptr) {
-                printf("Error creating backing memory.\n");
-                return;
-            }
+            mem = new FileMemory(size * sizeof(LinkedListNode<T>));
 
             for (int i = 0; i < size; i++) {
-                this->freeNodes.push(&((LinkedListNode<T>*)mem)[i]);
+                this->freeNodes.push(&((LinkedListNode<T>*)mem->memory)[i]);
             }
 
-            this->allocated = size;
+            this->allocated = mem->size;
             this->len = 0;
             this->head = nullptr;
             this->tail = nullptr;
-            this->memBoundLower = mem;
-            this->memBoundUpper = (LinkedListNode<T>*) mem + memSize;
+            this->memBoundLower = mem->memory;
+            this->memBoundUpper = (LinkedListNode<T>*) mem->memory + mem->size;
         }
 
-        ~LinkedListFile<T>() {
-            UnmapViewOfFile(mem);
-            CloseHandle(hMapFile);
-        }
+        ~LinkedListFile<T>() {}
 
     protected:
-        HANDLE hMapFile;
-        void* mem;
+        FileMemory* mem;
 };
 
 template <class T> class LinkedListPreallocated : public LinkedList<T> {
@@ -163,3 +145,4 @@ template <class T> class LinkedListPreallocated : public LinkedList<T> {
     protected:
         LinkedListNode<T>* nodes;
 };
+#endif
