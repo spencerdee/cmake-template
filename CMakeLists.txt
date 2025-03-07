@@ -20,5 +20,5 @@ add_executable(ProjectName ${SOURCE_FILES})
 target_include_directories(ProjectName PUBLIC
     ${CMAKE_SOURCE_DIR}/src/common
 )
-
-# target_link_libraries(ProjectName PRIVATE LibraryName)
+find_package(Threads REQUIRED)
+target_link_libraries(ProjectName Threads::Threads ws2_32)

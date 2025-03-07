@@ -1,47 +1,29 @@
 #include <cstdio>
 #include <chrono>
-#include "LinkedList.h"
-#include "Memory.h"
+#include "EthernetInterface.h"
+#include <thread>
 
 int main(int argc, char *argv[])
 {
-    printf("Hello World\n");
+    UDPClient client;
+    client.SetupClient(2000, "127.0.0.1");
 
-    int err = 0;
+    UDPServer server;
+    server.SetupServer(2000);
 
-    int s = 10000;
+    std::thread thread([&client] {
+        printf("Send Thread Started\n");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        client.Send("Test", 5);
+        printf("Send Thread Ended\n");
+    });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    LinkedListFile<int> l1 = LinkedListFile<int>(s);
-    
-    for (int i = 0; i < s; i++) {
-        err = l1.append(i);
-        if (err) {
-            printf("Error appending to list.\n");
-            break;
-        }
+    char buffer[1024];
+    int rec = 0;
+    while (rec == 0) {
+        rec = server.Receive(buffer, sizeof(buffer));
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> elapsed = end - start;
-
-    printf("final time file = %f\n", elapsed.count());
-
-    start = std::chrono::high_resolution_clock::now();
-    LinkedListPreallocated<int> l2 = LinkedListPreallocated<int>(s);
-    
-    for (int i = 0; i < s; i++) {
-        err = l2.append(i);
-        if (err) {
-            printf("Error appending to list.\n");
-            break;
-        }
-    }
-
-    end = std::chrono::high_resolution_clock::now();
-
-    elapsed = end - start;
-
-    printf("final time malloc = %f\n", elapsed.count());
+    thread.join();
+    return 0;
 }
